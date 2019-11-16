@@ -1,4 +1,4 @@
-from stellar_sdk import Server, Keypair
+from stellar_sdk import Server, Keypair, TransactionBuilder, Network
 import requests
 
 server = Server("https://horizon-testnet.stellar.org")
@@ -21,6 +21,7 @@ def fund_test_account(publicKey):
 def load_account(publicKey):
 	acc_resp = server.load_account(publicKey)
 	print(acc_resp)
+	return acc_resp
 
 def load_server_account(publicKey):
 	acc_resp = server.accounts().account_id(publicKey).call()
@@ -41,6 +42,14 @@ def load_sequence(publicKey):
 	acc_resp = load_server_account(publicKey)
 	return acc_resp['sequence']
 
+def create_transaction(publicKey, operationList):
+	sourceAccount = load_account(publicKey)
+	transactionBuilder = TransactionBuilder(
+		source_account=sourceAccount,
+		network_passphrase=Network.TESTNET_NETWORK_PASSPHRASE)
+	transaction = transactionBuilder.build()
+	return transaction.to_xdr()
+
 if __name__ == '__main__':
 	test()
 	kp = create_account()
@@ -53,4 +62,7 @@ if __name__ == '__main__':
 	print("------------Balance is ", balance)
 	seq = load_sequence(kp.public_key)
 	print("------------Sequence is ", seq)
+	txn_xdr = create_transaction(kp.public_key, None)
+	print("------------Txn xdr is ", txn_xdr)
+
 
