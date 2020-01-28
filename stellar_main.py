@@ -1,5 +1,11 @@
 from stellar_sdk import Server, Keypair, TransactionBuilder, Network
 import requests
+from flask import Flask
+from flask_cors import CORS
+from flask import jsonify
+
+app = Flask(__name__)
+CORS(app)
 
 server = Server("https://horizon-testnet.stellar.org")
 
@@ -50,19 +56,29 @@ def create_transaction(publicKey, operationList):
 	transaction = transactionBuilder.build()
 	return transaction.to_xdr()
 
-if __name__ == '__main__':
+@app.route('/')
+def main():
+	answer = {}
 	test()
 	kp = create_account()
 	fund_test_account(kp.public_key)
 	load_account(kp.public_key)
 	acc_resp = load_server_account(kp.public_key)
 	thresh = load_threshold(kp.public_key)
-	print("------------Threshold is ", thresh)
 	balance = load_native_balance(kp.public_key)
-	print("------------Balance is ", balance)
 	seq = load_sequence(kp.public_key)
-	print("------------Sequence is ", seq)
 	txn_xdr = create_transaction(kp.public_key, None)
-	print("------------Txn xdr is ", txn_xdr)
+	answer["Threshold"]=thresh
+	answer["Balance"]=balance
+	answer["Sequence"]= seq
+	answer["Txn XDR"]= txn_xdr
 
+	print("------------Threshold is ", thresh)
+	print("------------Balance is ", balance)
+	print("------------Sequence is ", seq)
+	print("------------Txn xdr is ", txn_xdr)
+	return jsonify(answer), 200
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port='6000')
 
