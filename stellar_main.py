@@ -1,8 +1,10 @@
-from stellar_sdk import Server, Keypair, TransactionBuilder, Network
+from stellar_sdk import Server, Keypair, TransactionBuilder, Network, TransactionEnvelope, Transaction
 import requests
 from flask import Flask
 from flask_cors import CORS
 from flask import jsonify
+
+import operation as op
 
 app = Flask(__name__)
 CORS(app)
@@ -35,28 +37,41 @@ class stellarWrapper:
         print(accountDetails)
         return accountDetails
 
-    def load_threshold(self, publicKey):
+    def get_threshold(self, publicKey):
         accountDetails = self.load_server_account(publicKey)
         return accountDetails['thresholds']
 
-    def load_native_balance(self, publicKey):
+    def get_native_balance(self, publicKey):
         accountDetails = self.load_server_account(publicKey)
         for x in accountDetails['balances']:
             if x['asset_type'] == 'native':
                 return x['balance']
 
-    def load_sequence(self, publicKey):
+    def get_sequence(self, publicKey):
         accountDetails = self.load_server_account(publicKey)
         return accountDetails['sequence']
 
-    def create_transaction(self, publicKey, operationList):
-        sourceAccount = self.load_account(publicKey)
+    def create_transaction(self, sourceAccountPublicKey, operationList):
+        sourceAccount = self.load_account(sourceAccountPublicKey)
         transactionBuilder = TransactionBuilder(
             source_account=sourceAccount,
             network_passphrase=Network.TESTNET_NETWORK_PASSPHRASE)
-        transaction = transactionBuilder.build()
-        return transaction.to_xdr()
+        for operation in operationList:
+            transactionBuilder.append_operation(operation)
+        txnEnv = transactionBuilder.build()
+        return txnEnv.to_xdr()
 
+    @staticmethod
+    def signTransaction(txnXdr, signature):
+        txnEnv = TransactionEnvelope.from_xdr(txnXdr)
+        txnEnv.sign(signature)
+        txnEnv.to_xdr()
+
+    def submitTransaction(self, txnXdr):
+        txnEnv = Transaction.from_xdr(txnXdr)
+        res = self.server.submit_transaction(txnEnv)
+        print(res)
+        return res
 
 @app.route('/')
 def main():
@@ -66,9 +81,9 @@ def main():
     stellar.fund_test_account(kp.public_key)
     stellar.load_account(kp.public_key)
     accountDetails = stellar.load_server_account(kp.public_key)
-    thresh = stellar.load_threshold(kp.public_key)
-    balance = stellar.load_native_balance(kp.public_key)
-    seq = stellar.load_sequence(kp.public_key)
+    thresh = stellar.get_threshold(kp.public_key)
+    balance = stellar.get_native_balance(kp.public_key)
+    seq = stellar.get_sequence(kp.public_key)
     txn_xdr = stellar.create_transaction(kp.public_key, None)
     answer["Public_Key"] = kp.public_key
     answer["Threshold"] = thresh
